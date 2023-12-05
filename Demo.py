@@ -26,13 +26,15 @@ class Employee:
         seniority = np.random.uniform(0, seniority_base[self.level])
         self.seniority = seniority
 
+    # Need to add a function for updating seniorityS
+
 
 class MaleEmployee(Employee):
     def __init__(self, level, leave_rate):
         super().__init__(level, leave_rate)
 
 
-class FemaleEmployee(MaleEmployee):
+class FemaleEmployee(Employee):
     # Female have an additional timer kappa
     def __init__(self, level, leave_rate, kappa_rate):
         self.kappa_rate = kappa_rate
@@ -55,7 +57,6 @@ class Company:
         self.time = 0
         # Check how many people leave/retire
         self.vacancies = {'E': 0, 'S': 0, 'M': 0, 'J': 0}
-        self.initialize_employees()  # Adjust this method for different initial states
 
     def initialize_employees(self):
         pass
@@ -65,12 +66,17 @@ class Company:
         levels = {'E': 'S', 'S': 'M', 'M': 'J'}
         return levels.get(level, None)  # Returns None if there is no lower level
 
+    # No bias
     def simulate_day(self):
         # Simulate a day in the company, including retirements, promotions, and hiring
         self.time += 1
+        # update seniority function
         self.check_retirements()
         self.handle_promotions()
         self.hire_new_employees()
+    # Todo: with bias
+    def simulate_day_bias(self):
+        pass
 
     def check_retirements(self):
         # Iterate through each level and employee to check for retirements
@@ -81,6 +87,7 @@ class Company:
                     self.employees[level].remove(employee)
                     self.vacancies[level] += 1
 
+    # No bias
     def handle_promotions(self):
         # Promote employees based on vacancies starting from the top level
         # J does not consider
@@ -94,6 +101,10 @@ class Company:
                 self.employees[level].append(most_senior)
                 self.vacancies[level] -= 1
                 self.vacancies[self.next_level(level)] += 1  # New vacancy in the lower level
+
+    #Todo: with bias
+    def handle_promotion_bias(self):
+        pass
 
     def hire_new_employees(self):
         # Hire new employees to fill junior-level vacancies
@@ -117,8 +128,14 @@ class Company:
 
     def run_simulation(self, duration):
         # Data storage for plotting
-        time_steps = [0]
-        gender_ratios = {'E': [0], 'S': [0], 'M': [0], 'J': [0]}
+        # time_steps = [0]
+        time_steps = [self.time]
+        # TODO
+        # gender_ratios = {'E': [0], 'S': [0], 'M': [0], 'J': [0]}
+        gender_ratios = {'E': [self.get_gender_ratios()['E']['female']],
+                         'S': [self.get_gender_ratios()['S']['female']],
+                         'M': [self.get_gender_ratios()['M']['female']],
+                         'J': [self.get_gender_ratios()['J']['female']]}
 
         for _ in range(duration):
             self.simulate_day()
@@ -179,17 +196,46 @@ class Company_All_Female(Company):
         plt.legend()
         plt.show()
 
+class Company_random(Company):
+    def __init__(self, employee_profile, lambda_rate_set, kappa_rate_set):
+        super().__init__(employee_profile, lambda_rate_set, kappa_rate_set)
+        self.initialize_employees()  # Adjust this method for different initial states
 
+    def initialize_employees(self):
+        for level in self.employees:
+            for _ in range(self.employee_profile[level]):
+                gender = np.random.choice(['male', 'female'])
+                new_employee = MaleEmployee(level, self.lambda_rate_set[level]) if gender == 'male' \
+                    else FemaleEmployee(level, self.lambda_rate_set[level], self.kappa_rate_set[level])
+                self.employees[level].append(new_employee)
+
+    def plot_gender_ratios(self, time_steps, gender_ratios):
+        plt.figure(figsize=(10, 6))
+        for level in gender_ratios:
+            plt.plot(time_steps, gender_ratios[level], label=f'Level {level}')
+
+        plt.xlabel('Time')
+        plt.ylabel('Female Gender Ratio')
+        plt.title('Gender Ratio Trends Over Time by Level, Random')
+        plt.legend()
+        plt.show()
+
+# TODO: 增加一个继承，改变handle
+# Simulation
 # Example usage
 target_employees = {'E': 5, 'S': 20, 'M': 100, 'J': 400}
 lambda_rate_set_user = {'E': 1, 'S': 1, 'M': 1, 'J': 1}
 kappa_rate_set_user = {'E': 0.5, 'S': 0.5, 'M': 0.5, 'J': 0.5}
 
-company_male = Company_All_Male(target_employees, lambda_rate_set_user, kappa_rate_set_user)
+# company_male = Company_All_Male(target_employees, lambda_rate_set_user, kappa_rate_set_user)
+#
+# company_female = Company_All_Female(target_employees, lambda_rate_set_user, kappa_rate_set_user)
 
-company_female = Company_All_Female(target_employees, lambda_rate_set_user, kappa_rate_set_user)
+company_random = Company_random(target_employees, lambda_rate_set_user, kappa_rate_set_user)
 
 # Run the simulation for a given duration
-company_male.run_simulation(duration=100)
+# company_male.run_simulation(duration=100)
+#
+# company_female.run_simulation(duration=100)
 
-company_female.run_simulation(duration=100)
+company_random.run_simulation(duration=100)
